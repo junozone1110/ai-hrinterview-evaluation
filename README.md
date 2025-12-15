@@ -1,0 +1,424 @@
+recruit.meetingnote@giftee.co
+# 面接フィードバックレポート自動生成システム
+
+## 概要
+
+「共有アイテム」に表示されるGoogleドキュメント（面接文字起こし）を自動検知し、Claude APIでフィードバックレポートを生成してSlackに通知するシステムです。
+
+---
+
+## アーキテクチャ
+
+```
+【入力】
+  共有アイテムから検索
+  │  ・「面接」「面談」を含むGoogleドキュメントを検索
+  │  ・処理済みファイルはスプレッドシートでID管理
+  │
+  ▼
+【分類】
+  Claude API (Haiku) で内容判定
+  │  ・採用面接/カジュアル面談 → 処理続行
+  │  ・振り返り面談/社内MTG等 → スキップ（ログのみ記録）
+  │
+  ▼
+【処理】
+  Claude API (Sonnet) でレポート生成
+  │  ・評価ガイドライン、レポート雛形、プロンプト指示は外部MDファイルから読み込み
+  │
+  ▼
+【出力】
+  Google Drive + Slack
+  │  ・MDファイルを共有ドライブに保存
+  │  ・Slackにスレッド形式で通知（親メッセージ + ファイル返信）
+  │  ・面接官へのメンション（チャンネルメンバーのみ）
+
+
+共有ドライブ/面接/
+├── input/            # 設定ファイル（評価基準・雛形・プロンプト）
+│   ├── feedbackprompt.md       # プロンプト指示
+│   ├── evaluationguideline.md  # 評価ガイドライン
+│   └── template.md             # レポート雛形
+├── output/           # 生成されたMDファイル
+└── logs/
+    └── 処理ログ.gsheet  # 処理履歴 + 処理済みファイルID管理
+```
+
+---
+
+## 出力イメージ
+
+### 生成されるファイル
+
+| ファイル種別 | ファイル数 | 命名規則 |
+|:--|:--|:--|
+| フィードバックレポート | 面接官の人数分 | `面接フィードバックレポート_{YYYYMMDD}_{面接官名}.md` |
+| 面接サマリ | 1ファイル | `面接サマリ_{YYYYMMDD}_{候補者名}.md` |
+
+### Slack通知形式
+
+親メッセージとして以下の情報を投稿し、スレッドにレポートファイルをアップロードします。
+
+```
+📋 面接フィードバックレポート生成完了
+
+📅 面接日時: 2025年12月02日
+👤 候補者: 山田太郎
+🎤 面接官: @田中, *佐藤*
+    └── 面接フィードバックレポート_20251202_tanaka.md
+    └── 面接フィードバックレポート_20251202_sato.md
+    └── 面接サマリ_20251202_山田太郎.md
+```
+
+#### メンションのルール
+
+| 条件 | 表示形式 |
+|:--|:--|
+| Slackユーザー発見 & チャンネルメンバー | `@田中`（メンション） |
+| Slackユーザー発見 & チャンネル外 | `*佐藤*`（太字、メンションなし） |
+| Slackユーザー未発見 | `*山田*`（太字） |
+
+---
+
+## 処理ログのステータス
+
+| ステータス | 意味 |
+|:--|:--|
+| `SUCCESS` | 正常処理完了 |
+| `SKIPPED` | 採用面接でないためスキップ（振り返り面談等） |
+| `FAILED` | エラー発生 |
+
+---
+
+## 前提条件
+
+- Google アカウント
+- Anthropic APIキー
+- Slack ワークスペースの管理者権限（App作成用）
+- 共有ドライブへのアクセス権限
+
+---
+
+## セットアップ手順
+
+### Step 1: 共有ドライブにフォルダ準備
+
+1. 共有ドライブ内に「面接」フォルダを作成
+
+2. 「面接」フォルダ配下に以下を作成：
+   - `input` フォルダ - 設定ファイル格納用
+   - `output` フォルダ - 生成されたMDファイルの保存先
+   - `logs` フォルダ - ログ用
+
+3. `input` フォルダに以下のMDファイルをアップロード：
+   - `feedbackprompt.md` - プロンプト指示
+   - `evaluationguideline.md` - 評価ガイドライン
+   - `template.md` - レポート雛形
+
+4. `logs` フォルダ内に「処理ログ」という名前のスプレッドシートを作成
+
+5. 各フォルダ・スプレッドシートのIDをメモ
+   - URLの `https://drive.google.com/drive/folders/[ここがID]` の部分
+
+---
+
+### Step 2: Slack App 作成
+
+1. [api.slack.com/apps](https://api.slack.com/apps) にアクセス
+
+2. 「Create New App」→「From scratch」を選択
+
+3. App名とワークスペースを設定
+
+4. 「OAuth & Permissions」に移動
+
+5. 「Bot Token Scopes」に以下を追加：
+   - `files:write` - ファイルアップロード用
+   - `chat:write` - メッセージ投稿用
+   - `users:read` - ユーザー一覧取得（名前でメンション用）
+   - `users:read.email` - メールアドレスでユーザー検索（メンション用）
+   - `channels:read` - チャンネルメンバー確認用（publicチャンネル）
+   - `groups:read` - チャンネルメンバー確認用（privateチャンネル）
+
+6. 「Install to Workspace」をクリック
+
+7. 「Bot User OAuth Token」（`xoxb-` で始まる）をコピー
+
+8. 投稿先チャンネルで `/invite @[アプリ名]` を実行してBotを招待
+
+9. チャンネルIDを取得（チャンネル名を右クリック →「チャンネル詳細を表示」→ 最下部にID）
+
+---
+
+### Step 3: GAS プロジェクト作成
+
+1. [script.google.com](https://script.google.com) にアクセス
+
+2. 「新しいプロジェクト」をクリック
+
+3. ファイルを作成：
+   - `Code.gs` - 本番用スクリプト
+   - `Test.gs` - テスト・確認用関数（「ファイルを追加」→「スクリプト」）
+
+4. `CONFIG` セクションのフォルダIDを設定：
+   ```javascript
+   const CONFIG = {
+     OUTPUT_FOLDER_ID: 'あなたのoutputフォルダID',
+     LOG_SPREADSHEET_ID: 'あなたのスプレッドシートID',
+     CONFIG_FOLDER_ID: 'あなたのinputフォルダID',
+
+     // 設定ファイル名（input フォルダ内のファイル名と一致させる）
+     PROMPT_FILE: 'feedbackprompt.md',
+     GUIDELINE_FILE: 'evaluationguideline.md',
+     TEMPLATE_FILE: 'template.md',
+     // ...
+   };
+   ```
+
+---
+
+### Step 4: Script Properties 設定
+
+1. GASエディタで「プロジェクトの設定」（歯車アイコン）をクリック
+
+2. 「スクリプト プロパティ」セクションで以下を追加：
+
+   | プロパティ | 値 |
+   |:--|:--|
+   | `CLAUDE_API_KEY` | Anthropic APIキー |
+   | `SLACK_BOT_TOKEN` | Slack Bot Token (`xoxb-...`) |
+   | `SLACK_CHANNEL_ID` | 投稿先チャンネルID |
+
+---
+
+### Step 5: トリガー設定
+
+1. GASエディタで「トリガー」（時計アイコン）をクリック
+
+2. 「トリガーを追加」をクリック
+
+3. 以下を設定：
+   - 実行する関数: `main`
+   - デプロイ時に実行: `Head`
+   - イベントのソース: `時間主導型`
+   - 時間ベースのトリガーのタイプ: `分ベースのタイマー`
+   - 間隔: `5分おき`
+
+4. 保存
+
+---
+
+### Step 6: 権限承認
+
+1. GASエディタで `testMain` 関数を選択して実行
+
+2. 権限承認のダイアログが表示されたら承認
+
+3. 「詳細」→「[プロジェクト名]（安全ではないページ）に移動」をクリック
+
+4. 必要な権限を確認して「許可」
+
+---
+
+## 動作確認
+
+### 設定確認
+
+GASエディタで `checkConfig` 関数を実行し、ログを確認：
+
+```
+=== 設定確認 ===
+OUTPUT_FOLDER_ID: xxxxx
+LOG_SPREADSHEET_ID: xxxxx
+CONFIG_FOLDER_ID: xxxxx
+CLAUDE_API_KEY: 設定済み
+SLACK_BOT_TOKEN: 設定済み
+SLACK_CHANNEL_ID: 設定済み
+```
+
+### 設定ファイル確認
+
+`listConfigFiles` 関数を実行すると、inputフォルダ内のファイル一覧が表示されます。
+
+### 共有アイテムの確認
+
+`listSharedDocuments` 関数を実行すると、共有アイテム内のGoogleドキュメント一覧が表示されます。
+「面接」「面談」を含むファイルには `✓` マークが付きます。
+
+### 面接分類テスト
+
+`testClassifyInterview` 関数を実行すると、対象ドキュメントが採用面接かどうか判定されます。
+
+### Slackメンションテスト
+
+`testSlackMention` 関数を実行すると、チャンネルメンバー確認とメンション形式を確認できます。
+
+### テスト実行
+
+1. 共有アイテムに「面接」または「面談」を含む名前のGoogleドキュメントがあることを確認
+
+2. `testMain` 関数を手動実行
+
+3. 以下を確認：
+   - 共有ドライブの `/面接/output` にMDファイルが生成される
+   - Slackチャンネルに親メッセージ + スレッド返信でファイルがアップロードされる
+   - スプレッドシートにログが記録されている
+
+---
+
+## 処理フロー
+
+```
+1. トリガー起動（5分間隔）
+   │
+2. 排他ロック取得
+   │ ※別プロセス実行中なら終了
+   │
+3. 共有アイテムからファイル検索
+   │ ├─ 「面接」または「面談」を含むドキュメントのみ対象
+   │ └─ 処理済みファイルIDはスキップ
+   │
+4. ドキュメント内容を読み取り
+   │
+5. 【分類】採用面接かどうか判定（Claude Haiku）
+   │ ├─ 採用面接/カジュアル面談 → 続行
+   │ └─ 振り返り面談/社内MTG → SKIPPED としてログ記録、終了
+   │
+6. 設定ファイル読み込み（input フォルダから）
+   │ ├─ feedbackprompt.md（プロンプト指示）
+   │ ├─ evaluationguideline.md（評価ガイドライン）
+   │ └─ template.md（レポート雛形）
+   │
+7. Claude API呼び出し（Sonnet）
+   │ └─ 面接官別レポート + 面接サマリを生成
+   │
+8. MDファイルをGoogle Drive /output に保存
+   │
+9. Slack通知（スレッド形式）
+   │ ├─ 親メッセージ投稿（日時・候補者・面接官）
+   │ ├─ チャンネルメンバー確認
+   │ ├─ メンバーのみメンション、非メンバーは太字表示
+   │ └─ スレッド返信でファイルアップロード
+   │
+10. 処理ログをスプレッドシートに記録（SUCCESS）
+   │
+11. ロック解放・終了
+```
+
+---
+
+## 主要関数一覧（Code.gs）
+
+| 関数名 | 役割 |
+|:--|:--|
+| `main()` | エントリポイント。トリガーから呼び出される |
+| `getNextDocument()` | 共有アイテムから未処理ドキュメントを1件取得 |
+| `classifyInterview()` | Claude APIで採用面接かどうかを判定 |
+| `generateFeedback()` | Claude APIを呼び出してレポート生成 |
+| `getSystemPrompt()` | 外部ファイルからシステムプロンプトを構築 |
+| `saveMdFilesToGoogleDrive()` | MDファイルをoutputフォルダに保存 |
+| `uploadFilesToSlack()` | Slackにスレッド形式で通知 |
+| `extractInterviewMetadata()` | レポートから面接情報を抽出 |
+| `getSlackUserIdByEmail()` | メールアドレスでSlackユーザーを検索 |
+| `getSlackUserIdByName()` | 名前でSlackユーザーを検索 |
+| `getChannelMembers()` | Slackチャンネルのメンバー一覧を取得 |
+| `logProcessing()` | スプレッドシートに処理ログを記録 |
+
+### テスト・確認用関数（Test.gs）
+
+| 関数名 | 役割 |
+|:--|:--|
+| `testMain()` | 手動テスト実行（main関数を呼び出し） |
+| `checkConfig()` | 設定値の確認 |
+| `listConfigFiles()` | inputフォルダ内のファイル一覧を表示 |
+| `listSharedDocuments()` | 共有アイテムの一覧を表示 |
+| `testClassifyInterview()` | 面接分類機能のテスト |
+| `testSlackMention()` | Slackメンション機能のテスト |
+| `testSlackNameLookup()` | 名前からSlackユーザー検索のテスト |
+| `testEmailExtraction()` | メールアドレス抽出のテスト |
+| `testDocumentTabs()` | ドキュメントタブ構造の確認 |
+
+---
+
+## トラブルシューティング
+
+### よくあるエラー
+
+| エラー | 原因 | 対処 |
+|:--|:--|:--|
+| `CLAUDE_API_KEY が設定されていません` | Script Propertiesが未設定 | Step 4を確認 |
+| `Claude API エラー: 401` | APIキーが無効 | APIキーを再確認 |
+| `設定ファイルが見つかりません` | inputフォルダにMDファイルがない | ファイル名を確認 |
+| `Slack upload URL取得失敗` | Bot Tokenが無効またはスコープ不足 | Slack App設定を確認 |
+| `Slack親メッセージ投稿失敗` | chat:writeスコープがない | Slack App設定を確認 |
+| `チャンネルメンバー取得失敗` | channels:read/groups:readスコープがない | Slack App設定を確認 |
+| `処理対象のドキュメントがありません` | 共有アイテムに対象ファイルがない | `listSharedDocuments`で確認 |
+
+### 再処理したい場合
+
+処理済みファイルを再処理したい場合は、スプレッドシートから該当のファイルIDの行を削除してください。
+
+### 評価基準の更新
+
+評価ガイドラインやレポート雛形を更新する場合は、`input` フォルダ内の該当MDファイルを編集するだけでOKです。コードの変更は不要です。
+
+### ログ確認方法
+
+1. GASエディタで「実行」→「実行ログ」
+2. Google Cloud Consoleでより詳細なログを確認
+
+---
+
+## ファイル構成
+
+```
+GASプロジェクト/
+├── Code.gs           # メインスクリプト（本番用）
+├── Test.gs           # テスト・確認用関数
+├── appsscript.json   # マニフェスト（権限設定）
+└── README.md         # このファイル
+
+Google Drive/面接/
+├── input/            # 設定ファイル
+│   ├── feedbackprompt.md
+│   ├── evaluationguideline.md
+│   └── template.md
+├── output/           # 生成されたレポート
+└── logs/
+    └── 処理ログ.gsheet
+```
+
+---
+
+## 技術仕様
+
+| 項目 | 内容 |
+|:--|:--|
+| 実行環境 | Google Apps Script |
+| AIモデル（分類） | Claude 3.5 Haiku |
+| AIモデル（レポート生成） | Claude Sonnet 4 |
+| 最大トークン | 16,000 |
+| 実行間隔 | 5分（トリガー設定） |
+| 処理単位 | 1回の実行で1ドキュメント |
+
+### API・スコープ
+
+| サービス | 必要な権限/スコープ |
+|:--|:--|
+| Google Drive | `https://www.googleapis.com/auth/drive` |
+| Google Docs | `https://www.googleapis.com/auth/documents` |
+| Google Sheets | `https://www.googleapis.com/auth/spreadsheets` |
+| External Request | `https://www.googleapis.com/auth/script.external_request` |
+| Slack | `files:write`, `chat:write`, `users:read`, `users:read.email`, `channels:read`, `groups:read` |
+
+---
+
+## 注意事項
+
+- 処理対象は「面接」または「面談」をファイル名に含むGoogleドキュメントのみ
+- 採用面接/カジュアル面談以外（振り返り面談等）は自動スキップされる
+- 1回の実行で1ドキュメントのみ処理（GAS実行時間制限対策）
+- 元の文字起こしファイルは移動しない（共有されているファイルのため）
+- 処理済み管理はスプレッドシートのファイルIDで行う
+- 評価基準の更新はinputフォルダ内のMDファイルを編集するだけでOK
+- Slackメンションはチャンネルメンバーのみ（非メンバーは太字表示）
