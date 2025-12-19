@@ -1,4 +1,3 @@
-recruit.meetingnote@giftee.co
 # 面接フィードバックレポート自動生成システム
 
 ## 概要
@@ -156,11 +155,20 @@ recruit.meetingnote@giftee.co
 
 2. 「新しいプロジェクト」をクリック
 
-3. ファイルを作成：
-   - `Code.gs` - 本番用スクリプト
-   - `Test.gs` - テスト・確認用関数（「ファイルを追加」→「スクリプト」）
+3. 以下のファイルを作成（「ファイルを追加」→「スクリプト」）：
+   - `config.gs` - 設定定数
+   - `main.gs` - メインエントリポイント
+   - `document.gs` - ドキュメント取得
+   - `claude.gs` - Claude API連携
+   - `drive.gs` - Google Drive操作
+   - `slack.gs` - Slack連携
+   - `log.gs` - ログ記録
+   - `prompt.gs` - プロンプト構築
+   - `feedback.gs` - 過去フィードバック比較
+   - `utils.gs` - ユーティリティ
+   - `test.gs` - テスト・確認用関数
 
-4. `CONFIG` セクションのフォルダIDを設定：
+4. `config.gs` の `CONFIG` オブジェクトでフォルダIDを設定：
    ```javascript
    const CONFIG = {
      OUTPUT_FOLDER_ID: 'あなたのoutputフォルダID',
@@ -307,24 +315,87 @@ SLACK_CHANNEL_ID: 設定済み
 
 ---
 
-## 主要関数一覧（Code.gs）
+## 主要関数一覧
+
+### config.gs（設定）
+
+| 関数名 | 役割 |
+|:--|:--|
+| `getScriptConfig()` | スクリプトプロパティからAPI設定を取得 |
+
+### main.gs（メイン処理）
 
 | 関数名 | 役割 |
 |:--|:--|
 | `main()` | エントリポイント。トリガーから呼び出される |
+| `processDocument()` | ドキュメントを処理（分類→生成→保存→通知） |
+
+### document.gs（ドキュメント取得）
+
+| 関数名 | 役割 |
+|:--|:--|
 | `getNextDocument()` | 共有アイテムから未処理ドキュメントを1件取得 |
+| `getProcessedFileIds()` | 処理済みファイルIDリストを取得 |
+| `getDocumentContentByExport()` | ドキュメント内容をテキストで取得 |
+| `getDocumentTabs()` | ドキュメントのタブ一覧を取得 |
+
+### claude.gs（Claude API連携）
+
+| 関数名 | 役割 |
+|:--|:--|
 | `classifyInterview()` | Claude APIで採用面接かどうかを判定 |
 | `generateFeedback()` | Claude APIを呼び出してレポート生成 |
-| `getSystemPrompt()` | 外部ファイルからシステムプロンプトを構築 |
+| `callClaudeApi()` | Claude API呼び出しの共通関数 |
+| `parseGeneratedReports()` | 生成テキストを個別レポートに分割 |
+
+### drive.gs（Google Drive操作）
+
+| 関数名 | 役割 |
+|:--|:--|
 | `saveMdFilesToGoogleDrive()` | MDファイルをoutputフォルダに保存 |
+| `getMdFileContent()` | 設定ファイルの内容を取得 |
+| `getEvaluationGuidelines()` | 評価ガイドラインを取得 |
+| `getReportTemplate()` | レポート雛形を取得 |
+
+### slack.gs（Slack連携）
+
+| 関数名 | 役割 |
+|:--|:--|
 | `uploadFilesToSlack()` | Slackにスレッド形式で通知 |
 | `extractInterviewMetadata()` | レポートから面接情報を抽出 |
 | `getSlackUserIdByEmail()` | メールアドレスでSlackユーザーを検索 |
 | `getSlackUserIdByName()` | 名前でSlackユーザーを検索 |
 | `getChannelMembers()` | Slackチャンネルのメンバー一覧を取得 |
+| `formatInterviewerMentions()` | 面接官のメンション表示をフォーマット |
+
+### log.gs（ログ記録）
+
+| 関数名 | 役割 |
+|:--|:--|
 | `logProcessing()` | スプレッドシートに処理ログを記録 |
 
-### テスト・確認用関数（Test.gs）
+### prompt.gs（プロンプト構築）
+
+| 関数名 | 役割 |
+|:--|:--|
+| `getSystemPrompt()` | 外部ファイルからシステムプロンプトを構築 |
+
+### feedback.gs（過去フィードバック比較）
+
+| 関数名 | 役割 |
+|:--|:--|
+| `getPreviousFeedbacksByInterviewer()` | 同一面接官の過去レポートを取得 |
+| `extractSpeakersFromTranscript()` | 文字起こしから話者名を抽出 |
+| `collectPastFeedbacksForSpeakers()` | 全話者の過去フィードバックを収集 |
+| `buildAllComparisonContexts()` | 比較コンテキストを生成 |
+
+### utils.gs（ユーティリティ）
+
+| 関数名 | 役割 |
+|:--|:--|
+| `getDateString()` | 現在日付をYYYYMMDD形式で取得 |
+
+### test.gs（テスト・確認用）
 
 | 関数名 | 役割 |
 |:--|:--|
@@ -373,8 +444,17 @@ SLACK_CHANNEL_ID: 設定済み
 
 ```
 GASプロジェクト/
-├── Code.gs           # メインスクリプト（本番用）
-├── Test.gs           # テスト・確認用関数
+├── config.gs         # 設定定数、スクリプトプロパティ取得
+├── main.gs           # メインエントリポイント、処理フロー制御
+├── document.gs       # ドキュメント検索、タブ取得、内容読み込み
+├── claude.gs         # Claude API呼び出し、分類、レポート生成
+├── drive.gs          # ファイル保存、設定ファイル読み込み
+├── slack.gs          # Slack通知、ファイルアップロード、ユーザー検索
+├── log.gs            # スプレッドシートへのログ記録
+├── prompt.gs         # システムプロンプト構築
+├── feedback.gs       # 過去フィードバック比較、話者抽出
+├── utils.gs          # 日付変換等のユーティリティ
+├── test.gs           # テスト・確認用関数
 ├── appsscript.json   # マニフェスト（権限設定）
 └── README.md         # このファイル
 
