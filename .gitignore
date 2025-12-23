@@ -4,6 +4,9 @@
 # clasp credentials (stored in home directory, but just in case)
 .clasprc.json
 
+# clasp config (contains script ID)
+.clasp.json
+
 # Local config files
 input/
 
