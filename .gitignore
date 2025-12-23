@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# clasp credentials (stored in home directory, but just in case)
+.clasprc.json
+
+# Local config files
+input/
+
+# Node modules (if npm is used later)
+node_modules/
+
+# Logs
+*.log
