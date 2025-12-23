@@ -6,8 +6,21 @@
 // キャッシュ（スクリプト実行中のみ有効）
 const SlackCache = {
   users: null,
-  channelMembers: null
+  usersTimestamp: null,
+  channelMembers: null,
+  channelMembersTimestamp: null
 };
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5分
+
+/**
+ * キャッシュが有効かどうかを判定
+ * @param {number|null} timestamp
+ * @returns {boolean}
+ */
+function isCacheValid(timestamp) {
+  if (!timestamp) return false;
+  return (Date.now() - timestamp) < CACHE_TTL_MS;
+}
 
 /**
  * MDファイルをSlackにアップロード（スレッド形式）
@@ -96,7 +109,7 @@ function postSlackSummaryMessage(metadata, botToken, channelId) {
   const result = postSlackMessage(channelId, message, botToken);
 
   if (!result.ok) {
-    console.error(`Slack親メッセージ投稿失敗: ${JSON.stringify(result)}`);
+    console.error(`Slack親メッセージ投稿失敗: ${result.error || 'unknown'}`);
     return null;
   }
 
@@ -150,7 +163,7 @@ function formatInterviewerMentions(interviewers, botToken, channelId) {
 
     if (userId) {
       if (channelMembers && !channelMembers.includes(userId)) {
-        console.log(`チャンネル外ユーザー: ${interviewer.name} (${userId}) - メンションスキップ`);
+        console.log('チャンネル外ユーザーのためメンションスキップ');
         return `*${interviewer.name || interviewer.email}*`;
       }
       return `<@${userId}>`;
@@ -186,7 +199,7 @@ function findSlackUserId(interviewer, botToken) {
  * @returns {string|null}
  */
 function getSlackUserIdByEmail(email, botToken) {
-  if (!email) return null;
+  if (!isValidEmail(email)) return null;
 
   try {
     const response = UrlFetchApp.fetch(
@@ -201,7 +214,7 @@ function getSlackUserIdByEmail(email, botToken) {
     const result = JSON.parse(response.getContentText());
     return (result.ok && result.user) ? result.user.id : null;
   } catch (e) {
-    console.warn(`Slackユーザー検索エラー (${email}): ${e.message}`);
+    console.warn('Slackユーザー検索エラー');
     return null;
   }
 }
@@ -212,7 +225,7 @@ function getSlackUserIdByEmail(email, botToken) {
  * @returns {Array}
  */
 function getAllSlackUsers(botToken) {
-  if (SlackCache.users) {
+  if (SlackCache.users && isCacheValid(SlackCache.usersTimestamp)) {
     return SlackCache.users;
   }
 
@@ -254,6 +267,7 @@ function getAllSlackUsers(botToken) {
 
     console.log(`Slackユーザー取得完了: ${allUsers.length}名`);
     SlackCache.users = allUsers;
+    SlackCache.usersTimestamp = Date.now();
     return allUsers;
   } catch (e) {
     console.warn(`Slackユーザー一覧取得エラー: ${e.message}`);
@@ -268,7 +282,7 @@ function getAllSlackUsers(botToken) {
  * @returns {string|null}
  */
 function getSlackUserIdByName(name, botToken) {
-  if (!name) return null;
+  if (!isValidName(name)) return null;
 
   const users = getAllSlackUsers(botToken);
   const normalizedName = normalizeName(name);
@@ -277,7 +291,6 @@ function getSlackUserIdByName(name, botToken) {
   // 完全一致
   for (const user of users) {
     if (matchesUserName(user, normalizedName, true)) {
-      console.log(`名前一致: ${name} -> ${user.realName} (${user.id})`);
       return user.id;
     }
   }
@@ -285,12 +298,10 @@ function getSlackUserIdByName(name, botToken) {
   // 部分一致
   for (const user of users) {
     if (matchesUserName(user, normalizedName, false, MIN_MATCH_LENGTH)) {
-      console.log(`名前部分一致: ${name} -> ${user.realName} (${user.id})`);
       return user.id;
     }
   }
 
-  console.log(`名前検索失敗: ${name}`);
   return null;
 }
 
@@ -343,7 +354,7 @@ function matchesUserName(user, normalizedName, exactMatch, minLength = 0) {
  * @returns {Array|null}
  */
 function getChannelMembers(channelId, botToken) {
-  if (SlackCache.channelMembers) {
+  if (SlackCache.channelMembers && isCacheValid(SlackCache.channelMembersTimestamp)) {
     return SlackCache.channelMembers;
   }
 
@@ -375,6 +386,7 @@ function getChannelMembers(channelId, botToken) {
 
     console.log(`チャンネルメンバー取得完了: ${members.length}名`);
     SlackCache.channelMembers = members;
+    SlackCache.channelMembersTimestamp = Date.now();
     return members;
   } catch (e) {
     console.warn(`チャンネルメンバー取得エラー: ${e.message}`);
@@ -393,7 +405,7 @@ function uploadFileToSlack(file, botToken, channelId, threadTs = null) {
   const uploadUrlResponse = getSlackUploadUrl(file.name, file.content, botToken);
 
   if (!uploadUrlResponse.ok) {
-    console.error(`Slack upload URL取得失敗: ${JSON.stringify(uploadUrlResponse)}`);
+    console.error(`Slack upload URL取得失敗: ${uploadUrlResponse.error || 'unknown'}`);
     return;
   }
 
@@ -405,7 +417,7 @@ function uploadFileToSlack(file, botToken, channelId, threadTs = null) {
   });
 
   if (uploadResponse.getResponseCode() !== 200) {
-    console.error(`Slack ファイルアップロード失敗: ${uploadResponse.getContentText()}`);
+    console.error(`Slack ファイルアップロード失敗: ${uploadResponse.getResponseCode()}`);
     return;
   }
 
@@ -467,7 +479,7 @@ function completeSlackUpload(fileId, channelId, title, botToken, threadTs = null
 
   const result = JSON.parse(response.getContentText());
   if (!result.ok) {
-    console.error(`Slack complete upload 失敗: ${JSON.stringify(result)}`);
+    console.error(`Slack complete upload 失敗: ${result.error || 'unknown'}`);
   }
 }
 
@@ -491,6 +503,6 @@ function sendErrorNotification(file, error) {
 
   const result = postSlackMessage(config.slackChannelId, message, config.slackBotToken);
   if (!result.ok) {
-    console.error(`Slack通知失敗: ${JSON.stringify(result)}`);
+    console.error(`Slack通知失敗: ${result.error || 'unknown'}`);
   }
 }

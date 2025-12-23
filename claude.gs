@@ -153,7 +153,7 @@ function callClaudeApi(params) {
   const responseBody = JSON.parse(response.getContentText());
 
   if (responseCode !== 200) {
-    throw new Error(`Claude API エラー: ${responseCode} - ${JSON.stringify(responseBody)}`);
+    throw new Error(`Claude API エラー: ${responseCode}`);
   }
 
   return responseBody.content[0].text.trim();
