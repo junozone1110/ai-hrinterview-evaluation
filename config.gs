@@ -1,19 +1,12 @@
 /**
  * 設定定数
  * 面接フィードバックレポート自動生成システム
- * 
- * セットアップ:
- * 1. このファイルをコピーして config.gs を作成
- * 2. YOUR_*_HERE の部分を実際のIDに置き換え
+ *
+ * 機密情報（APIキー、フォルダID等）はGASのスクリプトプロパティで管理
+ * 設定方法: GASエディタ → プロジェクトの設定 → スクリプトプロパティ
  */
 
 const CONFIG = {
-  // Google Drive フォルダID（共有ドライブ /面接 配下）
-  // URLから取得: https://drive.google.com/drive/folders/{FOLDER_ID}
-  OUTPUT_FOLDER_ID: 'YOUR_OUTPUT_FOLDER_ID_HERE',
-  LOG_SPREADSHEET_ID: 'YOUR_LOG_SPREADSHEET_ID_HERE',
-  CONFIG_FOLDER_ID: 'YOUR_CONFIG_FOLDER_ID_HERE',
-
   // 設定ファイル名
   PROMPT_FILE: 'feedbackprompt.md',
   GUIDELINE_FILE: 'evaluationguideline.md',
@@ -35,13 +28,26 @@ const CONFIG = {
 };
 
 /**
- * スクリプトプロパティからAPI設定を取得
+ * スクリプトプロパティから設定を取得
+ *
+ * 必要なスクリプトプロパティ:
+ * - CLAUDE_API_KEY: Claude APIキー
+ * - SLACK_BOT_TOKEN: Slack Bot Token (xoxb-...)
+ * - SLACK_CHANNEL_ID: Slack通知先チャンネルID
+ * - OUTPUT_FOLDER_ID: レポート出力先フォルダID
+ * - LOG_SPREADSHEET_ID: ログ記録用スプレッドシートID
+ * - CONFIG_FOLDER_ID: 設定ファイル格納フォルダID
  */
 function getScriptConfig() {
   const props = PropertiesService.getScriptProperties();
   return {
+    // API認証
     claudeApiKey: props.getProperty('CLAUDE_API_KEY'),
     slackBotToken: props.getProperty('SLACK_BOT_TOKEN'),
     slackChannelId: props.getProperty('SLACK_CHANNEL_ID'),
+    // Google Drive
+    outputFolderId: props.getProperty('OUTPUT_FOLDER_ID'),
+    logSpreadsheetId: props.getProperty('LOG_SPREADSHEET_ID'),
+    configFolderId: props.getProperty('CONFIG_FOLDER_ID'),
   };
 }

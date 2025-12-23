@@ -9,7 +9,8 @@
  * @returns {Array<{id: string, name: string, content: string, url: string}>}
  */
 function saveMdFilesToGoogleDrive(reports) {
-  const outputFolder = DriveApp.getFolderById(CONFIG.OUTPUT_FOLDER_ID);
+  const config = getScriptConfig();
+  const outputFolder = DriveApp.getFolderById(config.outputFolderId);
 
   return reports.map(report => {
     const blob = Utilities.newBlob(report.content, 'text/markdown', report.fileName);
@@ -50,7 +51,8 @@ function getMdFileContent(folderId, fileName) {
  * @returns {string}
  */
 function getEvaluationGuidelines() {
-  return getMdFileContent(CONFIG.CONFIG_FOLDER_ID, CONFIG.GUIDELINE_FILE);
+  const config = getScriptConfig();
+  return getMdFileContent(config.configFolderId, CONFIG.GUIDELINE_FILE);
 }
 
 /**
@@ -58,7 +60,8 @@ function getEvaluationGuidelines() {
  * @returns {string}
  */
 function getReportTemplate() {
-  return getMdFileContent(CONFIG.CONFIG_FOLDER_ID, CONFIG.TEMPLATE_FILE);
+  const config = getScriptConfig();
+  return getMdFileContent(config.configFolderId, CONFIG.TEMPLATE_FILE);
 }
 
 /**
@@ -66,5 +69,6 @@ function getReportTemplate() {
  * @returns {string}
  */
 function getPromptInstructions() {
-  return getMdFileContent(CONFIG.CONFIG_FOLDER_ID, CONFIG.PROMPT_FILE);
+  const config = getScriptConfig();
+  return getMdFileContent(config.configFolderId, CONFIG.PROMPT_FILE);
 }

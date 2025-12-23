@@ -36,7 +36,8 @@ function logProcessing(file, status, errorMessage, processingTime) {
  * @returns {GoogleAppsScript.Spreadsheet.Sheet}
  */
 function getLogSheet() {
-  const spreadsheet = SpreadsheetApp.openById(CONFIG.LOG_SPREADSHEET_ID);
+  const config = getScriptConfig();
+  const spreadsheet = SpreadsheetApp.openById(config.logSpreadsheetId);
   return spreadsheet.getActiveSheet();
 }
 

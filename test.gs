@@ -11,38 +11,34 @@
  * 設定値の確認
  */
 function checkConfig() {
-  console.log('=== 設定確認 ===');
-  console.log(`OUTPUT_FOLDER_ID: ${CONFIG.OUTPUT_FOLDER_ID}`);
-  console.log(`LOG_SPREADSHEET_ID: ${CONFIG.LOG_SPREADSHEET_ID}`);
-  console.log(`CONFIG_FOLDER_ID: ${CONFIG.CONFIG_FOLDER_ID}`);
+  const config = getScriptConfig();
 
-  const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
-  console.log(`CLAUDE_API_KEY: ${apiKey ? '設定済み' : '未設定'}`);
-
-  const slackToken = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
-  console.log(`SLACK_BOT_TOKEN: ${slackToken ? '設定済み' : '未設定'}`);
-
-  const channelId = PropertiesService.getScriptProperties().getProperty('SLACK_CHANNEL_ID');
-  console.log(`SLACK_CHANNEL_ID: ${channelId ? '設定済み' : '未設定'}`);
+  console.log('=== スクリプトプロパティ確認 ===');
+  console.log(`CLAUDE_API_KEY: ${config.claudeApiKey ? '設定済み' : '未設定'}`);
+  console.log(`SLACK_BOT_TOKEN: ${config.slackBotToken ? '設定済み' : '未設定'}`);
+  console.log(`SLACK_CHANNEL_ID: ${config.slackChannelId ? '設定済み' : '未設定'}`);
+  console.log(`OUTPUT_FOLDER_ID: ${config.outputFolderId ? '設定済み' : '未設定'}`);
+  console.log(`LOG_SPREADSHEET_ID: ${config.logSpreadsheetId ? '設定済み' : '未設定'}`);
+  console.log(`CONFIG_FOLDER_ID: ${config.configFolderId ? '設定済み' : '未設定'}`);
 
   // フォルダアクセス確認
   console.log('\n=== フォルダアクセス確認 ===');
   try {
-    const outputFolder = DriveApp.getFolderById(CONFIG.OUTPUT_FOLDER_ID);
+    const outputFolder = DriveApp.getFolderById(config.outputFolderId);
     console.log(`OUTPUT_FOLDER: ${outputFolder.getName()} ✓`);
   } catch (e) {
     console.error(`OUTPUT_FOLDER: アクセス失敗 - ${e.message}`);
   }
 
   try {
-    const configFolder = DriveApp.getFolderById(CONFIG.CONFIG_FOLDER_ID);
+    const configFolder = DriveApp.getFolderById(config.configFolderId);
     console.log(`CONFIG_FOLDER: ${configFolder.getName()} ✓`);
   } catch (e) {
     console.error(`CONFIG_FOLDER: アクセス失敗 - ${e.message}`);
   }
 
   try {
-    const spreadsheet = SpreadsheetApp.openById(CONFIG.LOG_SPREADSHEET_ID);
+    const spreadsheet = SpreadsheetApp.openById(config.logSpreadsheetId);
     console.log(`LOG_SPREADSHEET: ${spreadsheet.getName()} ✓`);
   } catch (e) {
     console.error(`LOG_SPREADSHEET: アクセス失敗 - ${e.message}`);
@@ -56,7 +52,8 @@ function listConfigFiles() {
   console.log('=== inputフォルダ内のファイル一覧 ===');
 
   try {
-    const folder = DriveApp.getFolderById(CONFIG.CONFIG_FOLDER_ID);
+    const config = getScriptConfig();
+    const folder = DriveApp.getFolderById(config.configFolderId);
     const files = folder.getFiles();
 
     const requiredFiles = [CONFIG.PROMPT_FILE, CONFIG.GUIDELINE_FILE, CONFIG.TEMPLATE_FILE];
@@ -236,7 +233,8 @@ function testGetPastFeedbacks() {
  * OUTPUT_FOLDERのフィードバックレポート一覧を出力
  */
 function testListFeedbackReports() {
-  const folder = DriveApp.getFolderById(CONFIG.OUTPUT_FOLDER_ID);
+  const config = getScriptConfig();
+  const folder = DriveApp.getFolderById(config.outputFolderId);
   const files = folder.getFiles();
 
   console.log(`=== OUTPUT_FOLDER内のフィードバックレポート一覧 ===`);

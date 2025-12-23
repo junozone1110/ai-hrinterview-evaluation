@@ -20,8 +20,7 @@
 ## ファイル構成
 
 ```
-├── config.gs.example # 設定定数テンプレート
-├── config.gs         # 設定定数（.gitignore対象、ローカルで作成）
+├── config.gs         # 設定定数（機密情報はScript Propertiesで管理）
 ├── main.gs           # メインエントリポイント、処理フロー制御
 ├── document.gs       # ドキュメント検索、タブ取得、内容読み込み
 ├── claude.gs         # Claude API呼び出し、分類、レポート生成
@@ -52,11 +51,27 @@ cp .clasp.json.example .clasp.json
 # .clasp.json のスクリプトIDを設定
 # GASプロジェクトのURLから取得: https://script.google.com/d/{SCRIPT_ID}/edit
 
-# 4. config.gs を作成（テンプレートをコピー）
-cp config.gs.example config.gs
-# config.gs のフォルダID・スプレッドシートIDを設定
-# Google DriveのURLから取得: https://drive.google.com/drive/folders/{FOLDER_ID}
+# 4. GASにプッシュ
+clasp push
+
+# 5. GASエディタでスクリプトプロパティを設定（下記参照）
+clasp open
 ```
+
+## スクリプトプロパティ設定
+
+GASエディタ → プロジェクトの設定 → スクリプトプロパティ で以下を設定:
+
+| プロパティ名 | 説明 | 取得元 |
+|:--|:--|:--|
+| `CLAUDE_API_KEY` | Claude APIキー | Anthropic Console |
+| `SLACK_BOT_TOKEN` | Slack Bot Token | Slack App設定 |
+| `SLACK_CHANNEL_ID` | 通知先チャンネルID | Slackチャンネル詳細 |
+| `OUTPUT_FOLDER_ID` | レポート出力先フォルダID | Google DriveのURL |
+| `LOG_SPREADSHEET_ID` | ログ用スプレッドシートID | スプレッドシートのURL |
+| `CONFIG_FOLDER_ID` | 設定ファイル格納フォルダID | Google DriveのURL |
+
+※ Google DriveのURL形式: `https://drive.google.com/drive/folders/{FOLDER_ID}`
 
 ## 開発コマンド
 
@@ -123,6 +138,5 @@ YYYY-MM-DD HH:MM
 ## 注意事項
 
 - `.clasp.json` は `.gitignore` 対象（スクリプトIDを含むため）
-- `config.gs` は `.gitignore` 対象（フォルダID・スプレッドシートIDを含むため）
-- Script Propertiesに機密情報（APIキー等）を設定
+- 機密情報（APIキー、フォルダID等）は全てスクリプトプロパティで管理
 - GASの実行時間制限は6分
