@@ -7,9 +7,6 @@
 # clasp config (contains script ID)
 .clasp.json
 
-# GAS config (contains folder/spreadsheet IDs)
-config.gs
-
 # Local config files
 input/
 

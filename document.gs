@@ -43,7 +43,8 @@ function matchesFilenameFilter(fileName) {
  */
 function getProcessedFileIds() {
   try {
-    const spreadsheet = SpreadsheetApp.openById(CONFIG.LOG_SPREADSHEET_ID);
+    const config = getScriptConfig();
+    const spreadsheet = SpreadsheetApp.openById(config.logSpreadsheetId);
     const sheet = spreadsheet.getActiveSheet();
     const data = sheet.getDataRange().getValues();
 

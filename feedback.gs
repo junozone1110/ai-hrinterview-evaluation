@@ -15,7 +15,8 @@ function getPreviousFeedbacksByInterviewer(interviewerName, excludeDate, limit =
     return [];
   }
 
-  const folder = DriveApp.getFolderById(CONFIG.OUTPUT_FOLDER_ID);
+  const config = getScriptConfig();
+  const folder = DriveApp.getFolderById(config.outputFolderId);
   const files = folder.getFiles();
   const pastReports = [];
   const normalizedTargetName = normalizeInterviewerName(interviewerName);
