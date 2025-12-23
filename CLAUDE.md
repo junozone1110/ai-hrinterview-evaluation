@@ -91,12 +91,34 @@ git push
 
 ## 開発フロー
 
-1. `main` ブランチから feature ブランチを作成
-2. ローカルで開発
-3. `clasp push` でGASに反映・動作確認
-4. コミット・プッシュ
-5. Pull Request作成（`Closes #issue番号` で自動クローズ）
-6. マージ
+1. **Issue作成**（必須）
+2. `main` ブランチから feature ブランチを作成
+3. ローカルで開発
+4. `clasp push` でGASに反映・動作確認
+5. コミット・プッシュ
+6. Pull Request作成（`Closes #issue番号` で自動クローズ）
+7. マージ
+
+## 必須ルール
+
+### Issue紐付けの徹底
+
+**すべての変更は必ずIssueと紐付けること。Issueなしでのマージは禁止。**
+
+1. 作業開始前に必ずIssueを作成する
+2. PRには `Closes #issue番号` を含める
+3. コミットメッセージにも `#issue番号` を含める
+4. 直接mainにプッシュする場合も、事前にIssueを作成し、コミット後にIssueをクローズする
+
+```bash
+# PRでの紐付け例
+gh pr create --title "feat: 新機能追加" --body "Closes #123"
+
+# 直接プッシュ後のIssueクローズ例
+gh issue close 123 --comment "コミット abc1234 で対応完了"
+```
+
+**理由**: 変更履歴の追跡、レビュー、ロールバック時の影響範囲特定のため
 
 ## コミットログのルール
 
