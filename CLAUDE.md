@@ -31,9 +31,26 @@
 ├── feedback.gs       # 過去フィードバック比較、話者抽出
 ├── utils.gs          # 日付変換等のユーティリティ
 ├── test.gs           # テスト・確認用関数
-├── appsscript.json   # GASマニフェスト
-├── .clasp.json       # clasp設定（GASプロジェクトID）
-└── log/              # 開発ログ格納フォルダ
+├── appsscript.json       # GASマニフェスト
+├── .clasp.json.example   # clasp設定テンプレート
+├── .clasp.json           # clasp設定（.gitignore対象、ローカルで作成）
+└── log/                  # 開発ログ格納フォルダ
+```
+
+## 初期セットアップ
+
+```bash
+# 1. clasp をインストール
+npm install -g @google/clasp
+
+# 2. Google アカウントでログイン
+clasp login
+
+# 3. .clasp.json を作成（テンプレートをコピー）
+cp .clasp.json.example .clasp.json
+
+# 4. .clasp.json のスクリプトIDを設定
+# GASプロジェクトのURLから取得: https://script.google.com/d/{SCRIPT_ID}/edit
 ```
 
 ## 開発コマンド
@@ -100,6 +117,6 @@ YYYY-MM-DD HH:MM
 
 ## 注意事項
 
-- `.clasp.json` にはGASプロジェクトIDが含まれる（公開リポジトリでは注意）
+- `.clasp.json` は `.gitignore` 対象（スクリプトIDを含むため）
 - Script Propertiesに機密情報（APIキー等）を設定
 - GASの実行時間制限は6分
