@@ -149,38 +149,32 @@
 
 ---
 
-### Step 3: GAS プロジェクト作成
+### Step 3: GAS プロジェクト作成（clasp利用）
 
-1. [script.google.com](https://script.google.com) にアクセス
+1. clasp をインストール
+   ```bash
+   npm install -g @google/clasp
+   ```
 
-2. 「新しいプロジェクト」をクリック
+2. Google アカウントでログイン
+   ```bash
+   clasp login --no-localhost
+   ```
 
-3. 以下のファイルを作成（「ファイルを追加」→「スクリプト」）：
-   - `config.gs` - 設定定数
-   - `main.gs` - メインエントリポイント
-   - `document.gs` - ドキュメント取得
-   - `claude.gs` - Claude API連携
-   - `drive.gs` - Google Drive操作
-   - `slack.gs` - Slack連携
-   - `log.gs` - ログ記録
-   - `prompt.gs` - プロンプト構築
-   - `feedback.gs` - 過去フィードバック比較
-   - `utils.gs` - ユーティリティ
-   - `test.gs` - テスト・確認用関数
+3. [script.google.com](https://script.google.com) で新しいプロジェクトを作成し、スクリプトIDを取得
+   - URLの `https://script.google.com/d/[スクリプトID]/edit` の部分
 
-4. `config.gs` の `CONFIG` オブジェクトでフォルダIDを設定：
-   ```javascript
-   const CONFIG = {
-     OUTPUT_FOLDER_ID: 'あなたのoutputフォルダID',
-     LOG_SPREADSHEET_ID: 'あなたのスプレッドシートID',
-     CONFIG_FOLDER_ID: 'あなたのinputフォルダID',
+4. リポジトリをクローンして `.clasp.json` を作成
+   ```bash
+   git clone https://github.com/junozone1110/ai-hrinterview-evaluation.git
+   cd ai-hrinterview-evaluation
+   cp .clasp.json.example .clasp.json
+   # .clasp.json のスクリプトIDを設定
+   ```
 
-     // 設定ファイル名（input フォルダ内のファイル名と一致させる）
-     PROMPT_FILE: 'feedbackprompt.md',
-     GUIDELINE_FILE: 'evaluationguideline.md',
-     TEMPLATE_FILE: 'template.md',
-     // ...
-   };
+5. GASにプッシュ
+   ```bash
+   clasp push
    ```
 
 ---
@@ -196,6 +190,9 @@
    | `CLAUDE_API_KEY` | Anthropic APIキー |
    | `SLACK_BOT_TOKEN` | Slack Bot Token (`xoxb-...`) |
    | `SLACK_CHANNEL_ID` | 投稿先チャンネルID |
+   | `OUTPUT_FOLDER_ID` | outputフォルダID |
+   | `LOG_SPREADSHEET_ID` | ログ用スプレッドシートID |
+   | `CONFIG_FOLDER_ID` | inputフォルダID |
 
 ---
 
@@ -235,13 +232,18 @@
 GASエディタで `checkConfig` 関数を実行し、ログを確認：
 
 ```
-=== 設定確認 ===
-OUTPUT_FOLDER_ID: xxxxx
-LOG_SPREADSHEET_ID: xxxxx
-CONFIG_FOLDER_ID: xxxxx
+=== スクリプトプロパティ確認 ===
 CLAUDE_API_KEY: 設定済み
 SLACK_BOT_TOKEN: 設定済み
 SLACK_CHANNEL_ID: 設定済み
+OUTPUT_FOLDER_ID: 設定済み
+LOG_SPREADSHEET_ID: 設定済み
+CONFIG_FOLDER_ID: 設定済み
+
+=== フォルダアクセス確認 ===
+OUTPUT_FOLDER: output ✓
+CONFIG_FOLDER: input ✓
+LOG_SPREADSHEET: 処理ログ ✓
 ```
 
 ### 設定ファイル確認
@@ -394,6 +396,9 @@ SLACK_CHANNEL_ID: 設定済み
 | 関数名 | 役割 |
 |:--|:--|
 | `getDateString()` | 現在日付をYYYYMMDD形式で取得 |
+| `isValidEmail()` | メールアドレス形式を検証 |
+| `isValidName()` | 名前の形式を検証 |
+| `sanitizeErrorMessage()` | エラーメッセージから機密情報を除去 |
 
 ### test.gs（テスト・確認用）
 
@@ -443,20 +448,23 @@ SLACK_CHANNEL_ID: 設定済み
 ## ファイル構成
 
 ```
-GASプロジェクト/
-├── config.gs         # 設定定数、スクリプトプロパティ取得
-├── main.gs           # メインエントリポイント、処理フロー制御
-├── document.gs       # ドキュメント検索、タブ取得、内容読み込み
-├── claude.gs         # Claude API呼び出し、分類、レポート生成
-├── drive.gs          # ファイル保存、設定ファイル読み込み
-├── slack.gs          # Slack通知、ファイルアップロード、ユーザー検索
-├── log.gs            # スプレッドシートへのログ記録
-├── prompt.gs         # システムプロンプト構築
-├── feedback.gs       # 過去フィードバック比較、話者抽出
-├── utils.gs          # 日付変換等のユーティリティ
-├── test.gs           # テスト・確認用関数
-├── appsscript.json   # マニフェスト（権限設定）
-└── README.md         # このファイル
+リポジトリ/
+├── config.gs             # 設定定数（機密情報はScript Propertiesで管理）
+├── main.gs               # メインエントリポイント、処理フロー制御
+├── document.gs           # ドキュメント検索、タブ取得、内容読み込み
+├── claude.gs             # Claude API呼び出し、分類、レポート生成
+├── drive.gs              # ファイル保存、設定ファイル読み込み
+├── slack.gs              # Slack通知、ファイルアップロード、ユーザー検索
+├── log.gs                # スプレッドシートへのログ記録
+├── prompt.gs             # システムプロンプト構築
+├── feedback.gs           # 過去フィードバック比較、話者抽出
+├── utils.gs              # 日付変換、バリデーション等のユーティリティ
+├── test.gs               # テスト・確認用関数
+├── appsscript.json       # GASマニフェスト（権限設定）
+├── .clasp.json.example   # clasp設定テンプレート
+├── CLAUDE.md             # Claude Code用コンテキストガイド
+├── log/                  # 開発ログ
+└── README.md             # このファイル
 
 Google Drive/面接/
 ├── input/            # 設定ファイル
@@ -502,3 +510,37 @@ Google Drive/面接/
 - 処理済み管理はスプレッドシートのファイルIDで行う
 - 評価基準の更新はinputフォルダ内のMDファイルを編集するだけでOK
 - Slackメンションはチャンネルメンバーのみ（非メンバーは太字表示）
+- 機密情報（APIキー、フォルダID等）は全てスクリプトプロパティで管理
+- `.clasp.json` は `.gitignore` 対象（スクリプトIDを含むため）
+
+---
+
+## 開発
+
+### ローカル開発環境
+
+```bash
+# clasp インストール
+npm install -g @google/clasp
+
+# ログイン
+clasp login --no-localhost
+
+# .clasp.json 作成
+cp .clasp.json.example .clasp.json
+# スクリプトIDを設定
+
+# GASにプッシュ
+clasp push
+
+# GASからプル
+clasp pull
+
+# GASエディタを開く
+clasp open
+```
+
+### GitHub
+
+- リポジトリ: https://github.com/junozone1110/ai-hrinterview-evaluation
+- Projects: https://github.com/users/junozone1110/projects/1
