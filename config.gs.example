@@ -1,13 +1,18 @@
 /**
  * 設定定数
  * 面接フィードバックレポート自動生成システム
+ * 
+ * セットアップ:
+ * 1. このファイルをコピーして config.gs を作成
+ * 2. YOUR_*_HERE の部分を実際のIDに置き換え
  */
 
 const CONFIG = {
   // Google Drive フォルダID（共有ドライブ /面接 配下）
-  OUTPUT_FOLDER_ID: '1f0yqhGYY2N1wc1XIaC6VBTMJ6MzGX8OF',
-  LOG_SPREADSHEET_ID: '1aP6dEuBCqtA_09_gexf_2fDld-qYBGGT9Zqc_bfinx0',
-  CONFIG_FOLDER_ID: '1ubMb7SL-2_rxxCvmSksHJHRrCY7TRH7t',
+  // URLから取得: https://drive.google.com/drive/folders/{FOLDER_ID}
+  OUTPUT_FOLDER_ID: 'YOUR_OUTPUT_FOLDER_ID_HERE',
+  LOG_SPREADSHEET_ID: 'YOUR_LOG_SPREADSHEET_ID_HERE',
+  CONFIG_FOLDER_ID: 'YOUR_CONFIG_FOLDER_ID_HERE',
 
   // 設定ファイル名
   PROMPT_FILE: 'feedbackprompt.md',

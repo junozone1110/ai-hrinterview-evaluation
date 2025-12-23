@@ -38,3 +38,36 @@ function parseYYYYMMDD(dateStr) {
   const day = parseInt(dateStr.substring(6, 8), 10);
   return new Date(year, month, day);
 }
+
+/**
+ * メールアドレスの形式を検証
+ * @param {string} email
+ * @returns {boolean}
+ */
+function isValidEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/**
+ * 名前の形式を検証
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isValidName(name) {
+  if (!name || typeof name !== 'string') return false;
+  return name.length >= 1 && name.length <= 100;
+}
+
+/**
+ * エラーメッセージから機密情報を除去
+ * @param {string} message
+ * @returns {string}
+ */
+function sanitizeErrorMessage(message) {
+  if (!message || typeof message !== 'string') return message;
+  return message
+    .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+    .replace(/xoxb-\S+/gi, '[REDACTED]')
+    .replace(/sk-ant-\S+/gi, '[REDACTED]');
+}
