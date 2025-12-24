@@ -90,17 +90,22 @@ function getDocumentTabs(fileId) {
   try {
     const url = `https://docs.googleapis.com/v1/documents/${fileId}?fields=tabs(tabProperties)`;
     const response = fetchWithAuth(url);
+    const responseCode = response.getResponseCode();
 
-    if (response.getResponseCode() !== 200) {
-      console.log('タブ情報取得失敗、従来方式にフォールバック');
+    if (responseCode !== 200) {
+      const errorBody = response.getContentText();
+      console.log(`タブ情報取得失敗 (HTTP ${responseCode}): ${errorBody.substring(0, 200)}`);
+      console.log('従来方式にフォールバック');
       return [];
     }
 
     const doc = JSON.parse(response.getContentText());
     if (!doc.tabs || doc.tabs.length === 0) {
+      console.log('タブ情報なし（単一タブドキュメント）');
       return [];
     }
 
+    console.log(`タブ取得成功: ${doc.tabs.length}個`);
     return doc.tabs.map(tab => ({
       id: tab.tabProperties.tabId,
       title: tab.tabProperties.title
