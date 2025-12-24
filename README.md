@@ -196,7 +196,28 @@
 
 ---
 
-### Step 5: トリガー設定
+### Step 5: Google Docs API 有効化
+
+Geminiによるメモなど、複数タブを持つドキュメントを正しく読み込むために必要です。
+
+1. GASエディタで「プロジェクトの設定」（歯車アイコン）をクリック
+
+2. 「Google Cloud Platform (GCP) プロジェクト」セクションのプロジェクト番号をクリック
+   - GCPコンソールが開きます
+
+3. GCPコンソールで左メニュー →「APIとサービス」→「有効なAPIとサービス」
+
+4. 「+ APIとサービスを有効にする」をクリック
+
+5. 「Google Docs API」を検索して選択
+
+6. 「有効にする」をクリック
+
+※ 直接アクセス: https://console.cloud.google.com/apis/library/docs.googleapis.com
+
+---
+
+### Step 6: トリガー設定
 
 1. GASエディタで「トリガー」（時計アイコン）をクリック
 
