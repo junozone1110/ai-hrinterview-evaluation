@@ -165,10 +165,15 @@ function callClaudeApi(params) {
  * @returns {Array<{fileName: string, content: string}>}
  */
 function parseGeneratedReports(generatedText) {
-  // パターン1: "出力ファイル名:" で始まるmarkdownブロック
-  let reports = parseReportsWithFileNamePattern(generatedText);
+  // パターン1: "# 出力ファイル名:" で始まるセクション（markdownブロックなし）
+  let reports = parseReportsWithHeaderFileNamePattern(generatedText);
 
-  // パターン2: セクション分割
+  // パターン2: "出力ファイル名:" で始まるmarkdownブロック
+  if (reports.length === 0) {
+    reports = parseReportsWithFileNamePattern(generatedText);
+  }
+
+  // パターン3: セクション分割
   if (reports.length === 0) {
     reports = parseReportsBySectionSplit(generatedText);
   }
@@ -185,7 +190,39 @@ function parseGeneratedReports(generatedText) {
 }
 
 /**
- * "出力ファイル名:" パターンでレポートをパース
+ * "# 出力ファイル名:" パターンでレポートをパース（markdownブロックなし）
+ * @param {string} text
+ * @returns {Array<{fileName: string, content: string}>}
+ */
+function parseReportsWithHeaderFileNamePattern(text) {
+  const reports = [];
+  // "# 出力ファイル名:" で分割
+  const sections = text.split(/(?=^#\s*出力ファイル名:)/m);
+
+  sections.forEach(section => {
+    const headerMatch = section.match(/^#\s*出力ファイル名:\s*(.+\.md)\s*\n([\s\S]*)/m);
+    if (headerMatch) {
+      const fileName = headerMatch[1].trim();
+      let content = headerMatch[2].trim();
+
+      // markdownコードブロックで囲まれている場合は除去
+      const codeBlockMatch = content.match(/^```(?:markdown)?\n([\s\S]*?)\n```$/);
+      if (codeBlockMatch) {
+        content = codeBlockMatch[1].trim();
+      }
+
+      reports.push({
+        fileName: fileName,
+        content: content
+      });
+    }
+  });
+
+  return reports;
+}
+
+/**
+ * "出力ファイル名:" パターンでレポートをパース（markdownブロック形式）
  * @param {string} text
  * @returns {Array<{fileName: string, content: string}>}
  */
