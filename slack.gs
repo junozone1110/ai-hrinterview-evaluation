@@ -485,13 +485,15 @@ function completeSlackUpload(fileId, channelId, title, botToken, threadTs = null
 
 /**
  * エラー通知をSlackに送信
+ * エラー通知用チャンネル（SLACK_ERROR_CHANNEL_ID）を優先、未設定なら通常チャンネルにフォールバック
  * @param {GoogleAppsScript.Drive.File|null} file
  * @param {Error} error
  */
 function sendErrorNotification(file, error) {
   const config = getScriptConfig();
 
-  if (!config.slackBotToken || !config.slackChannelId) {
+  const errorChannelId = config.slackErrorChannelId || config.slackChannelId;
+  if (!config.slackBotToken || !errorChannelId) {
     return;
   }
 
@@ -501,7 +503,7 @@ function sendErrorNotification(file, error) {
                   `*エラー内容:* ${error.message}\n` +
                   `*発生日時:* ${new Date().toLocaleString('ja-JP')}`;
 
-  const result = postSlackMessage(config.slackChannelId, message, config.slackBotToken);
+  const result = postSlackMessage(errorChannelId, message, config.slackBotToken);
   if (!result.ok) {
     console.error(`Slack通知失敗: ${result.error || 'unknown'}`);
   }

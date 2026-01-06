@@ -190,6 +190,7 @@
    | `CLAUDE_API_KEY` | Anthropic APIキー |
    | `SLACK_BOT_TOKEN` | Slack Bot Token (`xoxb-...`) |
    | `SLACK_CHANNEL_ID` | 投稿先チャンネルID |
+   | `SLACK_ERROR_CHANNEL_ID` | エラー通知先チャンネルID（任意） |
    | `OUTPUT_FOLDER_ID` | outputフォルダID |
    | `LOG_SPREADSHEET_ID` | ログ用スプレッドシートID |
    | `CONFIG_FOLDER_ID` | inputフォルダID |
@@ -257,6 +258,7 @@ GASエディタで `checkConfig` 関数を実行し、ログを確認：
 CLAUDE_API_KEY: 設定済み
 SLACK_BOT_TOKEN: 設定済み
 SLACK_CHANNEL_ID: 設定済み
+SLACK_ERROR_CHANNEL_ID: 設定済み（任意）
 OUTPUT_FOLDER_ID: 設定済み
 LOG_SPREADSHEET_ID: 設定済み
 CONFIG_FOLDER_ID: 設定済み

@@ -116,6 +116,8 @@ function handleProcessingError(error, file, startTime) {
   if (file) {
     logProcessing(file, 'FAILED', error.message, processingTime);
   }
+  // Slackにエラー通知
+  sendErrorNotification(file, error);
 }
 
 /**

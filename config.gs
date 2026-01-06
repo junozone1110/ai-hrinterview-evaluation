@@ -34,6 +34,7 @@ const CONFIG = {
  * - CLAUDE_API_KEY: Claude APIキー
  * - SLACK_BOT_TOKEN: Slack Bot Token (xoxb-...)
  * - SLACK_CHANNEL_ID: Slack通知先チャンネルID
+ * - SLACK_ERROR_CHANNEL_ID: エラー通知先チャンネルID（任意）
  * - OUTPUT_FOLDER_ID: レポート出力先フォルダID
  * - LOG_SPREADSHEET_ID: ログ記録用スプレッドシートID
  * - CONFIG_FOLDER_ID: 設定ファイル格納フォルダID
@@ -45,6 +46,7 @@ function getScriptConfig() {
     claudeApiKey: props.getProperty('CLAUDE_API_KEY'),
     slackBotToken: props.getProperty('SLACK_BOT_TOKEN'),
     slackChannelId: props.getProperty('SLACK_CHANNEL_ID'),
+    slackErrorChannelId: props.getProperty('SLACK_ERROR_CHANNEL_ID'),
     // Google Drive
     outputFolderId: props.getProperty('OUTPUT_FOLDER_ID'),
     logSpreadsheetId: props.getProperty('LOG_SPREADSHEET_ID'),
