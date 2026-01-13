@@ -123,7 +123,7 @@ function buildFeedbackUserContent(transcriptContent) {
 }
 
 /**
- * Claude APIを呼び出す共通関数
+ * Claude APIを呼び出す共通関数（リトライ機能付き）
  * @param {Object} params
  * @returns {string} レスポンステキスト
  */
@@ -148,15 +148,99 @@ function callClaudeApi(params) {
     muteHttpExceptions: true
   };
 
-  const response = UrlFetchApp.fetch(CLAUDE_API_URL, options);
-  const responseCode = response.getResponseCode();
-  const responseBody = JSON.parse(response.getContentText());
+  return executeWithRetry(() => {
+    const response = UrlFetchApp.fetch(CLAUDE_API_URL, options);
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
 
-  if (responseCode !== 200) {
-    throw new Error(`Claude API エラー: ${responseCode}`);
+    // リトライ可能なエラーをチェック
+    if (isRetryableError(responseCode, responseText)) {
+      throw new RetryableError(`Claude API エラー: ${responseCode} - ${responseText}`);
+    }
+
+    if (responseCode !== 200) {
+      throw new Error(`Claude API エラー: ${responseCode}`);
+    }
+
+    const responseBody = JSON.parse(responseText);
+    return responseBody.content[0].text.trim();
+  });
+}
+
+/**
+ * リトライ可能なエラーかどうかを判定
+ * @param {number} responseCode
+ * @param {string} responseText
+ * @returns {boolean}
+ */
+function isRetryableError(responseCode, responseText) {
+  // ネットワーク関連エラー
+  const retryableMessages = [
+    'Address unavailable',
+    'Connection timed out',
+    'Connection refused',
+    'Service unavailable',
+    'overloaded'
+  ];
+
+  // レスポンステキストにリトライ可能なメッセージが含まれているか
+  const hasRetryableMessage = retryableMessages.some(msg =>
+    responseText.toLowerCase().includes(msg.toLowerCase())
+  );
+
+  // HTTPステータスコードでリトライ可能なもの
+  // 429: Rate limit, 500: Internal Server Error, 502: Bad Gateway, 503: Service Unavailable, 504: Gateway Timeout
+  const retryableStatusCodes = [429, 500, 502, 503, 504];
+
+  return hasRetryableMessage || retryableStatusCodes.includes(responseCode);
+}
+
+/**
+ * リトライ可能エラークラス
+ */
+class RetryableError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'RetryableError';
+  }
+}
+
+/**
+ * リトライ付きで関数を実行
+ * @param {Function} fn - 実行する関数
+ * @returns {*} 関数の戻り値
+ */
+function executeWithRetry(fn) {
+  const maxAttempts = CONFIG.API_RETRY_MAX_ATTEMPTS;
+  const initialDelay = CONFIG.API_RETRY_INITIAL_DELAY_MS;
+
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return fn();
+    } catch (error) {
+      lastError = error;
+
+      // リトライ可能なエラーでない場合は即座にスロー
+      if (!(error instanceof RetryableError)) {
+        throw error;
+      }
+
+      // 最後の試行の場合はリトライしない
+      if (attempt === maxAttempts) {
+        console.error(`リトライ上限に達しました (${maxAttempts}回)`);
+        throw new Error(error.message);
+      }
+
+      // 指数バックオフで待機
+      const delay = initialDelay * Math.pow(2, attempt - 1);
+      console.warn(`リトライ ${attempt}/${maxAttempts}: ${delay}ms後に再試行 - ${error.message}`);
+      Utilities.sleep(delay);
+    }
   }
 
-  return responseBody.content[0].text.trim();
+  throw lastError;
 }
 
 /**

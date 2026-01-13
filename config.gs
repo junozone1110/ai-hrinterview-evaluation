@@ -21,6 +21,10 @@ const CONFIG = {
   CLAUDE_MAX_TOKENS: 16000,
   CLAUDE_CLASSIFIER_MAX_TOKENS: 100,
 
+  // API リトライ設定
+  API_RETRY_MAX_ATTEMPTS: 3,         // 最大リトライ回数
+  API_RETRY_INITIAL_DELAY_MS: 1000,  // 初回リトライ待機時間（ミリ秒）
+
   // 処理設定
   LOCK_TIMEOUT_MS: 300000,  // 5分
   CONTENT_PREVIEW_LENGTH: 5000,  // 分類用プレビュー文字数
