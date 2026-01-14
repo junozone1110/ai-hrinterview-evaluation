@@ -26,11 +26,15 @@ function classifyInterview(content) {
       maxTokens: CONFIG.CLAUDE_CLASSIFIER_MAX_TOKENS,
       systemPrompt: buildClassificationPrompt(),
       userMessage: `以下のテキストを分類してください：\n\n${contentPreview}`
-    });
+    }, PROCESSING_PHASE.CLASSIFICATION);
 
     return parseClassificationResponse(response);
   } catch (e) {
     console.warn(`分類処理エラー: ${e.message}`);
+    // DetailedErrorの場合はそのまま再スロー（デフォルト処理をせず上位で処理）
+    if (e instanceof DetailedError) {
+      throw e;
+    }
     return { isRecruitmentInterview: true, reason: '分類エラー - デフォルト処理' };
   }
 }
@@ -93,7 +97,7 @@ function generateFeedback(transcriptContent) {
     maxTokens: CONFIG.CLAUDE_MAX_TOKENS,
     systemPrompt: systemPrompt,
     userMessage: userContent
-  });
+  }, PROCESSING_PHASE.GENERATION);
 
   return parseGeneratedReports(response);
 }
@@ -125,9 +129,10 @@ function buildFeedbackUserContent(transcriptContent) {
 /**
  * Claude APIを呼び出す共通関数（リトライ機能付き）
  * @param {Object} params
+ * @param {string} phase - 処理フェーズ
  * @returns {string} レスポンステキスト
  */
-function callClaudeApi(params) {
+function callClaudeApi(params, phase) {
   const { apiKey, model, maxTokens, systemPrompt, userMessage } = params;
 
   const payload = {
@@ -155,16 +160,23 @@ function callClaudeApi(params) {
 
     // リトライ可能なエラーをチェック
     if (isRetryableError(responseCode, responseText)) {
-      throw new RetryableError(`Claude API エラー: ${responseCode} - ${responseText}`);
+      throw new RetryableError(`Claude API エラー: ${responseCode}`, {
+        httpStatus: responseCode,
+        responseBody: responseText
+      });
     }
 
     if (responseCode !== 200) {
-      throw new Error(`Claude API エラー: ${responseCode}`);
+      throw new DetailedError(`Claude API エラー: ${responseCode}`, {
+        phase: phase,
+        httpStatus: responseCode,
+        responseBody: responseText
+      });
     }
 
     const responseBody = JSON.parse(responseText);
     return responseBody.content[0].text.trim();
-  });
+  }, phase);
 }
 
 /**
@@ -199,42 +211,124 @@ function isRetryableError(responseCode, responseText) {
  * リトライ可能エラークラス
  */
 class RetryableError extends Error {
-  constructor(message) {
+  /**
+   * @param {string} message
+   * @param {Object} details
+   * @param {number|null} details.httpStatus
+   * @param {string|null} details.responseBody
+   */
+  constructor(message, details = {}) {
     super(message);
     this.name = 'RetryableError';
+    this.httpStatus = details.httpStatus || null;
+    this.responseBody = details.responseBody || null;
   }
 }
 
 /**
- * リトライ付きで関数を実行
+ * 詳細情報を保持するエラークラス
+ */
+class DetailedError extends Error {
+  /**
+   * @param {string} message
+   * @param {Object} details
+   * @param {string} details.phase - 処理フェーズ
+   * @param {number|null} details.httpStatus - HTTPステータスコード
+   * @param {string|null} details.responseBody - APIレスポンス
+   * @param {Array|null} details.retryHistory - リトライ履歴
+   */
+  constructor(message, details = {}) {
+    super(message);
+    this.name = 'DetailedError';
+    this.phase = details.phase || 'UNKNOWN';
+    this.httpStatus = details.httpStatus || null;
+    this.responseBody = details.responseBody
+      ? details.responseBody.substring(0, CONFIG.ERROR_RESPONSE_MAX_LENGTH)
+      : null;
+    this.retryHistory = details.retryHistory || null;
+  }
+
+  /**
+   * ログ記録用のJSON文字列を生成
+   * @returns {string}
+   */
+  toDetailJson() {
+    const detail = {
+      phase: this.phase,
+      httpStatus: this.httpStatus,
+      retryHistory: this.retryHistory
+    };
+    if (this.responseBody) {
+      detail.response = this.responseBody.substring(0, 200);
+    }
+    return JSON.stringify(detail);
+  }
+}
+
+/**
+ * リトライ付きで関数を実行（詳細情報収集対応）
  * @param {Function} fn - 実行する関数
+ * @param {string} phase - 処理フェーズ
  * @returns {*} 関数の戻り値
  */
-function executeWithRetry(fn) {
+function executeWithRetry(fn, phase) {
   const maxAttempts = CONFIG.API_RETRY_MAX_ATTEMPTS;
   const initialDelay = CONFIG.API_RETRY_INITIAL_DELAY_MS;
 
   let lastError;
+  let lastHttpStatus = null;
+  let lastResponseBody = null;
+  const retryHistory = [];
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return fn();
+      const result = fn();
+      // 成功時もリトライがあれば記録
+      if (retryHistory.length > 0) {
+        retryHistory.push({ attempt, success: true });
+      }
+      return result;
     } catch (error) {
       lastError = error;
 
+      // RetryableErrorから詳細情報を抽出
+      if (error instanceof RetryableError) {
+        lastHttpStatus = error.httpStatus;
+        lastResponseBody = error.responseBody;
+      }
+
+      // リトライ履歴を記録
+      const delay = attempt < maxAttempts ? initialDelay * Math.pow(2, attempt - 1) : 0;
+      retryHistory.push({
+        attempt,
+        success: false,
+        httpStatus: lastHttpStatus,
+        error: error.message.substring(0, 100),
+        delayMs: delay
+      });
+
       // リトライ可能なエラーでない場合は即座にスロー
       if (!(error instanceof RetryableError)) {
-        throw error;
+        throw new DetailedError(error.message, {
+          phase: phase,
+          httpStatus: lastHttpStatus,
+          responseBody: lastResponseBody,
+          retryHistory: retryHistory
+        });
       }
 
       // 最後の試行の場合はリトライしない
       if (attempt === maxAttempts) {
         console.error(`リトライ上限に達しました (${maxAttempts}回)`);
-        throw new Error(error.message);
+        throw new DetailedError(error.message, {
+          phase: phase,
+          httpStatus: lastHttpStatus,
+          responseBody: lastResponseBody,
+          retryHistory: retryHistory
+        });
       }
 
       // 指数バックオフで待機
-      const delay = initialDelay * Math.pow(2, attempt - 1);
       console.warn(`リトライ ${attempt}/${maxAttempts}: ${delay}ms後に再試行 - ${error.message}`);
       Utilities.sleep(delay);
     }

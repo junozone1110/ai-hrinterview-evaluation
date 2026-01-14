@@ -484,10 +484,10 @@ function completeSlackUpload(fileId, channelId, title, botToken, threadTs = null
 }
 
 /**
- * エラー通知をSlackに送信
+ * エラー通知をSlackに送信（詳細情報対応）
  * エラー通知用チャンネル（SLACK_ERROR_CHANNEL_ID）を優先、未設定なら通常チャンネルにフォールバック
  * @param {GoogleAppsScript.Drive.File|null} file
- * @param {Error} error
+ * @param {Error|DetailedError} error
  */
 function sendErrorNotification(file, error) {
   const config = getScriptConfig();
@@ -498,10 +498,32 @@ function sendErrorNotification(file, error) {
   }
 
   const fileName = file ? file.getName() : '不明';
-  const message = `⚠️ *面接フィードバックレポート生成エラー*\n\n` +
-                  `*ドキュメント:* ${fileName}\n` +
-                  `*エラー内容:* ${error.message}\n` +
-                  `*発生日時:* ${new Date().toLocaleString('ja-JP')}`;
+
+  // 基本情報
+  let message = `⚠️ *面接フィードバックレポート生成エラー*\n\n` +
+                `*ドキュメント:* ${fileName}\n` +
+                `*エラー内容:* ${error.message}\n` +
+                `*発生日時:* ${new Date().toLocaleString('ja-JP')}`;
+
+  // DetailedErrorの場合は詳細情報を追加
+  if (error instanceof DetailedError) {
+    message += `\n\n*詳細情報:*\n`;
+    message += `• 処理フェーズ: \`${error.phase}\`\n`;
+
+    if (error.httpStatus) {
+      message += `• HTTPステータス: \`${error.httpStatus}\`\n`;
+    }
+
+    if (error.retryHistory && error.retryHistory.length > 0) {
+      message += `• リトライ回数: ${error.retryHistory.length}回\n`;
+    }
+
+    if (error.responseBody) {
+      // レスポンスボディは200文字まで表示
+      const truncatedResponse = error.responseBody.substring(0, 200);
+      message += `\n*APIレスポンス（抜粋）:*\n\`\`\`${truncatedResponse}\`\`\``;
+    }
+  }
 
   const result = postSlackMessage(errorChannelId, message, config.slackBotToken);
   if (!result.ok) {

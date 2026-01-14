@@ -105,16 +105,32 @@ function handleSkippedDocument(file, classification, startTime) {
 }
 
 /**
- * 処理エラーのハンドリング
- * @param {Error} error
+ * 処理エラーのハンドリング（詳細情報対応）
+ * @param {Error|DetailedError} error
  * @param {GoogleAppsScript.Drive.File|null} file
  * @param {Date} startTime
  */
 function handleProcessingError(error, file, startTime) {
   console.error(`エラー発生: ${error.message}`);
   const processingTime = calculateProcessingTime(startTime);
+
+  // DetailedErrorから詳細情報を抽出
+  const errorDetails = {
+    phase: '',
+    httpStatus: '',
+    retryCount: '',
+    detailJson: ''
+  };
+
+  if (error instanceof DetailedError) {
+    errorDetails.phase = error.phase;
+    errorDetails.httpStatus = error.httpStatus || '';
+    errorDetails.retryCount = error.retryHistory ? error.retryHistory.length : '';
+    errorDetails.detailJson = error.toDetailJson();
+  }
+
   if (file) {
-    logProcessing(file, 'FAILED', error.message, processingTime);
+    logProcessing(file, 'FAILED', error.message, processingTime, errorDetails);
   }
   // Slackにエラー通知
   sendErrorNotification(file, error);

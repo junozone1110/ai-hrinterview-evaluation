@@ -117,7 +117,7 @@ function getDocumentTabs(fileId) {
 }
 
 /**
- * 特定タブの内容を取得
+ * 特定タブの内容を取得（詳細エラー対応）
  * @param {string} fileId
  * @param {string|null} tabId
  * @returns {string}
@@ -132,7 +132,11 @@ function getDocumentTabContent(fileId, tabId) {
   const responseCode = response.getResponseCode();
 
   if (responseCode !== 200) {
-    throw new Error(`ドキュメント取得失敗: HTTP ${responseCode}`);
+    throw new DetailedError(`ドキュメント取得失敗: HTTP ${responseCode}`, {
+      phase: PROCESSING_PHASE.DOCUMENT_FETCH,
+      httpStatus: responseCode,
+      responseBody: response.getContentText()
+    });
   }
 
   return response.getContentText();

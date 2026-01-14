@@ -10,21 +10,28 @@
  */
 function saveMdFilesToGoogleDrive(reports) {
   const config = getScriptConfig();
-  const outputFolder = DriveApp.getFolderById(config.outputFolderId);
 
-  return reports.map(report => {
-    const blob = Utilities.newBlob(report.content, 'text/markdown', report.fileName);
-    const file = outputFolder.createFile(blob);
+  try {
+    const outputFolder = DriveApp.getFolderById(config.outputFolderId);
 
-    console.log(`ファイル保存: ${report.fileName}`);
+    return reports.map(report => {
+      const blob = Utilities.newBlob(report.content, 'text/markdown', report.fileName);
+      const file = outputFolder.createFile(blob);
 
-    return {
-      id: file.getId(),
-      name: report.fileName,
-      content: report.content,
-      url: file.getUrl()
-    };
-  });
+      console.log(`ファイル保存: ${report.fileName}`);
+
+      return {
+        id: file.getId(),
+        name: report.fileName,
+        content: report.content,
+        url: file.getUrl()
+      };
+    });
+  } catch (e) {
+    throw new DetailedError(`Drive保存失敗: ${e.message}`, {
+      phase: PROCESSING_PHASE.DRIVE_SAVE
+    });
+  }
 }
 
 /**

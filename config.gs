@@ -25,10 +25,24 @@ const CONFIG = {
   API_RETRY_MAX_ATTEMPTS: 3,         // 最大リトライ回数
   API_RETRY_INITIAL_DELAY_MS: 1000,  // 初回リトライ待機時間（ミリ秒）
 
+  // エラー詳細設定
+  ERROR_RESPONSE_MAX_LENGTH: 500,    // APIレスポンス記録の最大文字数
+
   // 処理設定
   LOCK_TIMEOUT_MS: 300000,  // 5分
   CONTENT_PREVIEW_LENGTH: 5000,  // 分類用プレビュー文字数
   PAST_FEEDBACK_LIMIT: 3,  // 過去フィードバック取得件数
+};
+
+/**
+ * 処理フェーズ定数
+ */
+const PROCESSING_PHASE = {
+  DOCUMENT_FETCH: 'DOCUMENT_FETCH',
+  CLASSIFICATION: 'CLASSIFICATION',
+  GENERATION: 'GENERATION',
+  DRIVE_SAVE: 'DRIVE_SAVE',
+  SLACK_SEND: 'SLACK_SEND'
 };
 
 /**
